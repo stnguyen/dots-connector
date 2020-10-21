@@ -1,0 +1,30 @@
+{
+  "name": "dots-connector",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "lint": "eslint . --ext .ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stnguyen/dots-connector.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/stnguyen/dots-connector/issues"
+  },
+  "homepage": "https://github.com/stnguyen/dots-connector#readme",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^4.5.0",
+    "eslint": "^7.11.0",
+    "typescript": "^4.0.3"
+  },
+  "dependencies": {
+    "build": "^0.1.4"
+  }
+}
