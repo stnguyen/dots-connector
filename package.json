@@ -1,27 +1,31 @@
 {
   "name": "dots-connector",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Delaunay Triangulation library",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "keywords": [
+    "Delaunay",
+    "Triangulation"
+  ],
+  "author": "Son Tung Nguyen",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc",
-    "lint": "eslint . --ext .ts"
+    "test": "mocha -r ts-node/register test/**/*.test.ts",
+    "build": "tsc"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/stnguyen/dots-connector.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/stnguyen/dots-connector/issues"
   },
   "homepage": "https://github.com/stnguyen/dots-connector#readme",
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^4.5.0",
-    "eslint": "^7.11.0",
+    "@types/mocha": "^8.0.3",
+    "mocha": "^8.2.0",
+    "ts-node": "^9.0.0",
     "typescript": "^4.0.3"
   },
   "dependencies": {
