@@ -44,7 +44,7 @@ function expand (points: Float32Array): Uint32Array {
     hull = HullEdge.fromTriangle(0, 1, 2);
   }
 
-  console.log('triangle: ', triangles, ' hull: ', hull.toString());
+  console.log(`triangle: ${ triangles }, hull: ${ hull }`);
 
   // Expand 4th point
   return triangles;
