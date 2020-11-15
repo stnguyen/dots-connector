@@ -17,8 +17,8 @@ function sortByX (points: number[][]): number[][] {
 function flattenWithNoise (points: number[][]): Float32Array {
   const result = new Float32Array(points.length * 2);
   points.forEach((point, idx) => {
-    result[idx * 2]     = point[0] + Math.random() / 100;
-    result[idx * 2 + 1] = point[1] + Math.random() / 100;
+    result[idx * 2]     = point[0] + Math.random() / 1_000_000_000;
+    result[idx * 2 + 1] = point[1] + Math.random() / 1_000_000_000;
   });
   return result;
 } 
@@ -50,46 +50,56 @@ function expand (points: Float32Array): Uint32Array {
 
   // Expand 4th point
   for (let i = 3; i < points.length / 2; i++) {
-    console.log(`triangle: ${ triangles }, hull: ${ rootHullEdge }`);
     let hullEdge: HullEdge | undefined = rootHullEdge;
     while (hullEdge) {
-      let prevEdge: HullEdge | undefined = hullEdge.prev;
+      console.log(`hullEdge: ${ hullEdge.from },${ hullEdge.to }`);
+      const prevEdge: HullEdge | undefined = hullEdge.prev;
       const nextEdge: HullEdge | undefined = hullEdge.next;
+      prevEdge && console.log(`  - prevEdge: ${ prevEdge.from },${ prevEdge.to }`);
+      nextEdge && console.log(`  - nextEdge: ${ nextEdge.from },${ nextEdge.to }`);
       if (isP2OnRightSide(points, hullEdge.from, hullEdge.to, i)) {
         // Form new triangle
-        triangles[numTriangles * 3] = hullEdge.to;
-        triangles[numTriangles * 3 + 1] = hullEdge.from;
-        triangles[numTriangles * 3 + 2] = i;
+        if (points[hullEdge.from * 2] < points[hullEdge.to * 2]) {
+          triangles[numTriangles * 3] = hullEdge.from;
+          triangles[numTriangles * 3 + 1] = i;
+          triangles[numTriangles * 3 + 2] = hullEdge.to;
+        } else {
+          triangles[numTriangles * 3] = hullEdge.to;
+          triangles[numTriangles * 3 + 1] = hullEdge.from;
+          triangles[numTriangles * 3 + 2] = i;
+        }
         numTriangles++;
 
         // Remove hullEdge from the linked list
         prevEdge && (prevEdge.next = nextEdge);
         nextEdge && (nextEdge.prev = prevEdge);
 
+        const newUpperEdge: HullEdge | undefined = new HullEdge(i, hullEdge.to, nextEdge);
+        nextEdge && (nextEdge.prev = newUpperEdge);
+        const newLowerEdge = new HullEdge(hullEdge.from, i, newUpperEdge, prevEdge);
+        console.log(`  - newUpperEdge: ${ newUpperEdge.from },${ newUpperEdge.to }`);
+        console.log(`  - newLowerEdge: ${ newLowerEdge.from },${ newLowerEdge.to }`);
+
         // New lower edge goes from hullEdge.from (which is equal to prevEdge.to) to i
         if (prevEdge && prevEdge.from === i) {
           // if its reverse is equal to prevEdge, then remove prevEdge
           if (prevEdge.prev) {
-            prevEdge.prev.next = nextEdge;
-            nextEdge && (nextEdge.prev = prevEdge.prev);
-          } else if (prevEdge === rootHullEdge) {
-            rootHullEdge = nextEdge;
-            nextEdge && (nextEdge.prev = undefined);
+            prevEdge.prev.next = newUpperEdge;
+          } else {
+            // prevEdge.prev is null so prevEdge must be the root
+            rootHullEdge = newUpperEdge;
           }
+
+          newUpperEdge.prev = prevEdge.prev;
         } else {
           // Add new lower edge into the linked list
-          const newLowerEdge = new HullEdge(hullEdge.from, i, nextEdge, prevEdge);
-          prevEdge && (prevEdge.next = newLowerEdge);
-          !prevEdge && (rootHullEdge = newLowerEdge);
-          nextEdge && (nextEdge.prev = newLowerEdge);
-          prevEdge = newLowerEdge;
+          if (prevEdge) {
+            prevEdge.next = newLowerEdge;
+          } else {
+            rootHullEdge = newLowerEdge;
+          }
+          newUpperEdge.prev = newLowerEdge;
         }
-
-        // Add new upper edge into the linked list
-        const newUpperEdge = new HullEdge(i, hullEdge.to, nextEdge, prevEdge);
-        prevEdge && (prevEdge.next = newUpperEdge);
-        !prevEdge && (rootHullEdge = newUpperEdge);
-        nextEdge && (nextEdge.prev = newUpperEdge);
 
         // Clean up
         hullEdge.next = undefined;
@@ -97,10 +107,11 @@ function expand (points: Float32Array): Uint32Array {
       }
 
       hullEdge = nextEdge;
+      console.log(`-> hull: ${ rootHullEdge }`);
     }
+    console.log(`Added point ${ i } -> triangle: ${ triangles }`);
   }
 
-  console.log(`triangle: ${ triangles }, hull: ${ rootHullEdge }`);
   return triangles.subarray(0, numTriangles * 3);
 }
 
@@ -145,6 +156,9 @@ class HullEdge {
   ) {}
 
   toString (): string {
+    if (this.next && this.next.prev !== this) {
+      throw new Error(`I'm (${ this.from },${ this.to }). My next is (${ this.next.from },${ this.next.to }), but my next's prev is (${ this.next.prev?.from },${ this.next.prev?.to })`);
+    }
     return `(${ this.from },${ this.to })->${ this.next || '🛑' }`;
   }
 }
