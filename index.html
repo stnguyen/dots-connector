@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dots Connector Demo</title>
+  <!-- <script src="./lib/index.js"></script> -->
+  <script>
+    function init() {
+      const canvas = document.getElementById("demo-canvas");
+      const ctx = canvas.getContext("2d");
+      const width = canvas.width;
+      const height = canvas.height;
+
+      canvas.addEventListener("mousedown", (e) => {
+        const x = e.clientX - canvas.offsetLeft;
+        const y = e.clientY - canvas.offsetTop;
+        console.log(`clicked ${ x }, ${ y }`);
+      })
+    }
+  </script>
+</head>
+<body onload="init()">
+  <canvas id="demo-canvas" style="border: 1px dashed; width: 300px; height: 300px"></canvas>
+</body>
+</html>
