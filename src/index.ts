@@ -1,4 +1,4 @@
-export default function triangulate (points: number[][]): number[] {
+function triangulate (points: number[][]): number[] {
   return pipe([ sortByX, flattenWithNoise, expand ])(points);
 }
 
