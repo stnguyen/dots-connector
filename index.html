@@ -16,11 +16,16 @@
         const x = e.clientX - canvas.offsetLeft;
         const y = e.clientY - canvas.offsetTop;
         console.log(`clicked ${ x }, ${ y }`);
+
+        ctx.fillStyle = "#ff2626";
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2, true);
+        ctx.fill();
       })
     }
   </script>
 </head>
 <body onload="init()">
-  <canvas id="demo-canvas" style="border: 1px dashed; width: 300px; height: 300px"></canvas>
+  <canvas id="demo-canvas" style="border: 1px dashed" width="600" height="400"></canvas>
 </body>
 </html>
