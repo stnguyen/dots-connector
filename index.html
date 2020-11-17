@@ -12,43 +12,35 @@
       const width = canvas.width;
       const height = canvas.height;
 
-      const points = [];
+      const originalPoints = [];
 
       canvas.addEventListener("mousedown", (e) => {
         const x = e.clientX - canvas.offsetLeft;
         const y = e.clientY - canvas.offsetTop;
+        originalPoints.push([ x, y ]);
         console.log(`clicked ${ x }, ${ y }`);
 
-        points.push([ x, y ]);
-        const trigs = triangulate(points);
-        console.log('trigs: ', Array.from(trigs));
+        const { triangles, points } = triangulate(originalPoints);
 
         // Refresh
         ctx.clearRect(0, 0, width, height);
         ctx.beginPath();
         // Draw edges first
         ctx.fillStyle = "#000000";
-        for (var i = 0; i < trigs.length; i += 3) {
-          const i0 = trigs[i];
-          const i1 = trigs[i + 1];
-          const i2 = trigs[i + 2];
-          if (i0 === 0 && i1 === 0) {
-            break;
-          }
-
-          const p0 = points[i0];
-          const p1 = points[i1];
-          const p2 = points[i2];
-          ctx.moveTo(p0[0], p0[1]);
-          ctx.lineTo(p1[0], p1[1]);
-          ctx.lineTo(p2[0], p2[1]);
-          ctx.lineTo(p0[0], p0[1]);
+        for (var i = 0; i < triangles.length; i += 3) {
+          const i0 = triangles[i] * 2;
+          const i1 = triangles[i + 1] * 2;
+          const i2 = triangles[i + 2] * 2;
+          ctx.moveTo(points[i0], points[i0 + 1]);
+          ctx.lineTo(points[i1], points[i1 + 1]);
+          ctx.lineTo(points[i2], points[i2 + 1]);
+          ctx.lineTo(points[i0], points[i0 + 1]);
         }
         ctx.stroke();
 
         // Draw vertices
         ctx.fillStyle = "#ff2626";
-        points.forEach((point) => {
+        originalPoints.forEach((point) => {
           ctx.fillRect(point[0], point[1], 2, 2);
         })
       })

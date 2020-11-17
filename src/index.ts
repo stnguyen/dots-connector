@@ -1,4 +1,4 @@
-function triangulate (points: number[][]): number[] {
+function triangulate (points: number[][]): { triangles: Uint32Array, points: Float32Array } {
   return pipe([ sortByX, flattenWithNoise, expand ])(points);
 }
 
@@ -23,7 +23,7 @@ function flattenWithNoise (points: number[][]): Float32Array {
   return result;
 } 
 
-function expand (points: Float32Array): Uint32Array {
+function expand (points: Float32Array): { triangles: Uint32Array, points: Float32Array } {
   console.log(`points: ${ points }`);
   const maxTriangles = Math.max(2 * points.length/2 - 5, 0);
   const triangles = new Uint32Array(maxTriangles * 3);
@@ -112,7 +112,7 @@ function expand (points: Float32Array): Uint32Array {
     console.log(`Added point ${ i } -> triangle: ${ triangles }`);
   }
 
-  return triangles.subarray(0, numTriangles * 3);
+  return { triangles: triangles.subarray(0, numTriangles * 3), points: points };
 }
 
 function isP2OnRightSide(points: Float32Array, p0: number, p1: number, p2: number): boolean {
