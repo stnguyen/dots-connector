@@ -27,6 +27,8 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
   console.log(`points: ${ points }`);
   const maxTriangles = Math.max(2 * points.length/2 - 5, 0);
   const triangles = new Uint32Array(maxTriangles * 3);
+  const neighborTriangles = new Int32Array(3);
+  neighborTriangles.fill(-1);
   let numTriangles = 0;
   let rootHullEdge: HullEdge | undefined;
 
@@ -37,13 +39,13 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
     triangles[0] = 1;
     triangles[1] = 0;
     triangles[2] = 2;
-    rootHullEdge = HullEdge.fromTriangle(1, 0, 2);
+    rootHullEdge = HullEdge.fromTriangle(1, 0, 2, 0);
   } else {
     // p0p1p2
     triangles[0] = 0;
     triangles[1] = 1;
     triangles[2] = 2;
-    rootHullEdge = HullEdge.fromTriangle(0, 1, 2);
+    rootHullEdge = HullEdge.fromTriangle(0, 1, 2, 0);
   }
   numTriangles++;
   console.log(`triangle: ${ triangles }, hull: ${ rootHullEdge }`);
@@ -68,21 +70,25 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
           triangles[numTriangles * 3 + 1] = hullEdge.from;
           triangles[numTriangles * 3 + 2] = i;
         }
-        numTriangles++;
+        neighborTriangles.fill(-1);
+        neighborTriangles[0] = hullEdge.trigangle;
 
         // Remove hullEdge from the linked list
         prevEdge && (prevEdge.next = nextEdge);
         nextEdge && (nextEdge.prev = prevEdge);
 
-        const newUpperEdge: HullEdge | undefined = new HullEdge(i, hullEdge.to, nextEdge);
+        const newUpperEdge: HullEdge | undefined = new HullEdge(i, hullEdge.to, numTriangles, nextEdge);
         nextEdge && (nextEdge.prev = newUpperEdge);
-        const newLowerEdge = new HullEdge(hullEdge.from, i, newUpperEdge, prevEdge);
+        const newLowerEdge = new HullEdge(hullEdge.from, i, numTriangles, newUpperEdge, prevEdge);
         console.log(`  - newUpperEdge: ${ newUpperEdge.from },${ newUpperEdge.to }`);
         console.log(`  - newLowerEdge: ${ newLowerEdge.from },${ newLowerEdge.to }`);
+
+        numTriangles++;
 
         // New lower edge goes from hullEdge.from (which is equal to prevEdge.to) to i
         if (prevEdge && prevEdge.from === i) {
           // if its reverse is equal to prevEdge, then remove prevEdge
+          neighborTriangles[1] = prevEdge.trigangle;
           if (prevEdge.prev) {
             prevEdge.prev.next = newUpperEdge;
           } else {
@@ -104,14 +110,17 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
         // Clean up
         hullEdge.next = undefined;
         hullEdge.prev = undefined;
+
+        console.log(`  - Neighbor triangles: ${ neighborTriangles.filter((t) => t >= 0).join(', ') }`);
       }
 
       hullEdge = nextEdge;
       console.log(`-> hull: ${ rootHullEdge }`);
     }
-    console.log(`Added point ${ i } -> triangle: ${ triangles }`);
+    console.log(`Added point ${ i } -> triangle: ${ triangles }\n---`);
   }
 
+  console.log(`DONE!! -> triangle: ${ triangles.subarray(0, numTriangles * 3) }`);
   return { triangles: triangles.subarray(0, numTriangles * 3), points: points };
 }
 
@@ -122,7 +131,7 @@ function isP2OnRightSide(points: Float32Array, p0: number, p1: number, p2: numbe
   const y1 = points[p1 * 2 + 1];
   const x2 = points[p2 * 2];
   const y2 = points[p2 * 2 + 1];
-  return (x2-x0)*(y1-y0)-(x1-x0)*(y2-y0) > 0;
+  return (x2-x0)*(y1-y0)-(x1-x0)*(y2-y0) < 0;
 }
 
 /**
@@ -134,10 +143,10 @@ function pipe (funcs: Function[]) {
 }
 
 class HullEdge {
-  static fromTriangle (p0: number, p1: number, p2: number): HullEdge {
-    const e1 = new HullEdge(p0, p1);
-    const e2 = new HullEdge(p1, p2);
-    const e3 = new HullEdge(p2, p0);
+  static fromTriangle (p0: number, p1: number, p2: number, triangle: number): HullEdge {
+    const e1 = new HullEdge(p0, p1, triangle);
+    const e2 = new HullEdge(p1, p2, triangle);
+    const e3 = new HullEdge(p2, p0, triangle);
     e1.next = e2;
     e2.prev = e1;
     e2.next = e3;
@@ -150,15 +159,16 @@ class HullEdge {
     public from: number,
     // To point index
     public to: number,
+    public trigangle: number,
     // Pointer to next hull edge 
     public next?: HullEdge,
-    public prev?: HullEdge,
+    public prev?: HullEdge
   ) {}
 
   toString (): string {
     if (this.next && this.next.prev !== this) {
       throw new Error(`I'm (${ this.from },${ this.to }). My next is (${ this.next.from },${ this.next.to }), but my next's prev is (${ this.next.prev?.from },${ this.next.prev?.to })`);
     }
-    return `(${ this.from },${ this.to })->${ this.next || '🛑' }`;
+    return `(${ this.from },${ this.to },trig ${ this.trigangle })->${ this.next || '🛑' }`;
   }
 }
