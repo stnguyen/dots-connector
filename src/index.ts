@@ -24,7 +24,7 @@ function flattenWithNoise (points: number[][]): Float32Array {
 } 
 
 function expand (points: Float32Array): { triangles: Uint32Array, points: Float32Array } {
-  console.log(`points: ${ points }`);
+  // console.log(`points: ${ points }`);
   const maxTriangles = Math.max(2 * points.length/2 - 5, 0);
   const triangles = new Uint32Array(maxTriangles * 3);
   const neighborTriangles = new Int32Array(3);
@@ -48,17 +48,17 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
     rootHullEdge = HullEdge.fromTriangle(0, 1, 2, 0);
   }
   numTriangles++;
-  console.log(`triangle: ${ triangles }, hull: ${ rootHullEdge }`);
+  // console.log(`triangle: ${ triangles }, hull: ${ rootHullEdge }`);
 
   // Expand 4th point
   for (let i = 3; i < points.length / 2; i++) {
     let hullEdge: HullEdge | undefined = rootHullEdge;
     while (hullEdge) {
-      console.log(`hullEdge: ${ hullEdge.from },${ hullEdge.to }`);
+      // console.log(`hullEdge: ${ hullEdge.from },${ hullEdge.to }`);
       const prevEdge: HullEdge | undefined = hullEdge.prev;
       const nextEdge: HullEdge | undefined = hullEdge.next;
-      prevEdge && console.log(`  - prevEdge: ${ prevEdge.from },${ prevEdge.to }`);
-      nextEdge && console.log(`  - nextEdge: ${ nextEdge.from },${ nextEdge.to }`);
+      // prevEdge && console.log(`  - prevEdge: ${ prevEdge.from },${ prevEdge.to }`);
+      // nextEdge && console.log(`  - nextEdge: ${ nextEdge.from },${ nextEdge.to }`);
       if (isP2OnRightSide(points, hullEdge.from, hullEdge.to, i)) {
         // Form new triangle
         triangles[numTriangles * 3 + 0] = hullEdge.to;
@@ -74,8 +74,8 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
 
         let newUpperEdge: HullEdge | undefined = new HullEdge(i, hullEdge.to, numTriangles, nextEdge);
         let newLowerEdge: HullEdge | undefined = new HullEdge(hullEdge.from, i, numTriangles, newUpperEdge, prevEdge);
-        console.log(`  - newUpperEdge: ${ newUpperEdge.from },${ newUpperEdge.to }`);
-        console.log(`  - newLowerEdge: ${ newLowerEdge.from },${ newLowerEdge.to }`);
+        // console.log(`  - newUpperEdge: ${ newUpperEdge.from },${ newUpperEdge.to }`);
+        // console.log(`  - newLowerEdge: ${ newLowerEdge.from },${ newLowerEdge.to }`);
 
         numTriangles++;
 
@@ -126,7 +126,7 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
         hullEdge.next = undefined;
         hullEdge.prev = undefined;
 
-        console.log(`  - Neighbor triangles: ${ neighborTriangles.filter((t) => t >= 0).join(', ') }`);
+        // console.log(`  - Neighbor triangles: ${ neighborTriangles.filter((t) => t >= 0).join(', ') }`);
         for (let j = 0; j < neighborTriangles.length; j++) {
           const trigIdx = neighborTriangles[j];
           if (trigIdx < 0) {
@@ -137,8 +137,8 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
           const b = triangles[trigIdx * 3 + 1];
           const c = triangles[trigIdx * 3 + 2];
           if (inCircle(points, a, b, c, i)) {
-            console.log(`  ⟳ Need to flip edge between ${ numTriangles - 1 } and ${ trigIdx }`);
-            console.log(`     before: hull: ${ rootHullEdge }, triangles: ${ triangles }`);
+            // console.log(`  ⟳ Need to flip edge between ${ numTriangles - 1 } and ${ trigIdx }`);
+            // console.log(`     before: hull: ${ rootHullEdge }, triangles: ${ triangles }`);
             const leftToBottom = hullEdge.to > hullEdge.from;
             triangles[trigIdx * 3 + 2] = i; // abc -> abi
             if (leftToBottom) {
@@ -175,18 +175,18 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
               correctingHullEdge = correctingHullEdge.next;
             }
 
-            console.log(`   after flipped, triangle: ${ triangles }`);
+            // console.log(`   after flipped, triangle: ${ triangles }`);
           }
         }
       }
 
       hullEdge = nextEdge;
-      console.log(`-> hull: ${ rootHullEdge }`);
+      // console.log(`-> hull: ${ rootHullEdge }`);
     }
-    console.log(`Added point ${ i } -> triangle: ${ triangles }\n---`);
+    // console.log(`Added point ${ i } -> triangle: ${ triangles }\n---`);
   }
 
-  console.log(`DONE!! -> triangle: ${ triangles.subarray(0, numTriangles * 3) }`);
+  // console.log(`DONE!! -> triangle: ${ triangles.subarray(0, numTriangles * 3) }`);
   return { triangles: triangles.subarray(0, numTriangles * 3), points: points };
 }
 
