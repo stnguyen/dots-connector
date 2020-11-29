@@ -24,11 +24,14 @@ function flattenWithNoise (points: number[][]): Float32Array {
 } 
 
 function expand (points: Float32Array): { triangles: Uint32Array, points: Float32Array } {
-  // console.log(`points: ${ points }`);
+  console.log(`points: ${ points }`);
   const maxTriangles = Math.max(2 * points.length/2 - 5, 0);
   const triangles = new Uint32Array(maxTriangles * 3);
-  const neighborTriangles = new Int32Array(3);
-  neighborTriangles.fill(-1);
+  const triangleNeighbors = new Uint32Array(maxTriangles * 3);
+  triangleNeighbors.fill(maxTriangles + 1);
+
+  const newTriangleNeighbors = new Int32Array(3);
+  newTriangleNeighbors.fill(-1);
   let numTriangles = 0;
   let rootHullEdge: HullEdge;
 
@@ -48,25 +51,34 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
     rootHullEdge = HullEdge.fromTriangle(0, 1, 2, 0);
   }
   numTriangles++;
-  // console.log(`triangle: ${ triangles }, hull: ${ rootHullEdge }`);
 
   // Expand 4th point
   for (let i = 3; i < points.length / 2; i++) {
     let hullEdge: HullEdge | undefined = rootHullEdge;
     while (hullEdge) {
-      // console.log(`hullEdge: ${ hullEdge.from },${ hullEdge.to }`);
+      console.log(`hullEdge: ${ hullEdge.from },${ hullEdge.to }`);
       const prevEdge: HullEdge | undefined = hullEdge.prev;
       const nextEdge: HullEdge | undefined = hullEdge.next;
       // prevEdge && console.log(`  - prevEdge: ${ prevEdge.from },${ prevEdge.to }`);
       // nextEdge && console.log(`  - nextEdge: ${ nextEdge.from },${ nextEdge.to }`);
       if (isP2OnRightSide(points, hullEdge.from, hullEdge.to, i)) {
-        // Form new triangle
+        // NEW TRIANGLE!!!
         triangles[numTriangles * 3 + 0] = hullEdge.to;
         triangles[numTriangles * 3 + 1] = hullEdge.from;
         triangles[numTriangles * 3 + 2] = i;
 
-        neighborTriangles.fill(-1);
-        neighborTriangles[0] = hullEdge.triangle;
+        newTriangleNeighbors.fill(-1);
+        newTriangleNeighbors[0] = hullEdge.triangle;
+        const a = triangles[hullEdge.triangle * 3 + 0];
+        const b = triangles[hullEdge.triangle * 3 + 1];
+        const c = triangles[hullEdge.triangle * 3 + 2];
+        const idx = a === hullEdge.to
+          ? 1
+          : b === hullEdge.to
+            ? 2
+            : 0;
+        triangleNeighbors[hullEdge.triangle * 3 + idx] = numTriangles;
+        triangleNeighbors[numTriangles * 3 + 2] = hullEdge.triangle;
 
         // Remove hullEdge from the linked list
         prevEdge && (prevEdge.next = nextEdge);
@@ -74,15 +86,18 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
 
         let newUpperEdge: HullEdge | undefined = new HullEdge(i, hullEdge.to, numTriangles, nextEdge);
         let newLowerEdge: HullEdge | undefined = new HullEdge(hullEdge.from, i, numTriangles, newUpperEdge, prevEdge);
-        // console.log(`  - newUpperEdge: ${ newUpperEdge.from },${ newUpperEdge.to }`);
-        // console.log(`  - newLowerEdge: ${ newLowerEdge.from },${ newLowerEdge.to }`);
+        console.log(`  - newUpperEdge: ${ newUpperEdge.from },${ newUpperEdge.to }`);
+        console.log(`  - newLowerEdge: ${ newLowerEdge.from },${ newLowerEdge.to }`);
 
+        // INCREASE NUM TRIANGLES
         numTriangles++;
 
         // Check if lower edge is equal to reverse of prevEdge
         if (prevEdge && prevEdge.from === i) {
           // Equal to reverse of prevEdge, then remove prevEdge
-          neighborTriangles[1] = prevEdge.triangle;
+          newTriangleNeighbors[1] = prevEdge.triangle;
+          triangleNeighbors[prevEdge.triangle * 3 + 1] = numTriangles - 1;
+          triangleNeighbors[(numTriangles - 1) * 3 + 0] = prevEdge.triangle;
           if (prevEdge.prev) {
             prevEdge.prev.next = newUpperEdge;
           } else {
@@ -106,7 +121,9 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
         const nextOrRoot = nextEdge || rootHullEdge;
         if (nextOrRoot.from === newUpperEdge.to && nextOrRoot.to === newUpperEdge.from) {
           // Equal to reverse of next/root edge, then remove next/rootEdge
-          neighborTriangles[1] = nextOrRoot.triangle;
+          newTriangleNeighbors[1] = nextOrRoot.triangle;
+          triangleNeighbors[(numTriangles - 1) * 3 + 1] = nextOrRoot.triangle;
+          triangleNeighbors[nextOrRoot.triangle * 3 + 0] = numTriangles - 1;
           if (nextOrRoot === rootHullEdge) {
             rootHullEdge = rootHullEdge.next!;
             rootHullEdge.prev = undefined;
@@ -121,14 +138,14 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
           nextEdge && (nextEdge.prev = newUpperEdge);
         }
 
-
         // Clean up
         hullEdge.next = undefined;
         hullEdge.prev = undefined;
 
-        // console.log(`  - Neighbor triangles: ${ neighborTriangles.filter((t) => t >= 0).join(', ') }`);
-        for (let j = 0; j < neighborTriangles.length; j++) {
-          const trigIdx = neighborTriangles[j];
+        console.log(`  - hull: ${ rootHullEdge }\n    triangles : ${ triangles }\n    trianglesN: ${ triangleNeighbors }`);
+        console.log(`  - Neighbor triangles: ${ newTriangleNeighbors.filter((t) => t >= 0).join(', ') }`);
+        for (let j = 0; j < newTriangleNeighbors.length; j++) {
+          const trigIdx = newTriangleNeighbors[j];
           if (trigIdx < 0) {
             break;
           }
@@ -136,10 +153,9 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
           const a = triangles[trigIdx * 3 + 0];
           const b = triangles[trigIdx * 3 + 1];
           const c = triangles[trigIdx * 3 + 2];
-          if (inCircle(points, a, b, c, i)) {
-            // console.log(`  ⟳ Need to flip edge between ${ numTriangles - 1 } and ${ trigIdx }`);
-            // console.log(`     before: hull: ${ rootHullEdge }, triangles: ${ triangles }`);
-            const leftToBottom = hullEdge.to > hullEdge.from;
+          const leftToBottom = hullEdge.to > hullEdge.from;
+          if (leftToBottom ? inCircle(points, a, b, c, i) : inCircle(points, b, c, a, i)) {
+            console.log(`  ⟳ Need to flip edge between ${ numTriangles - 1 } and ${ trigIdx }`);
             triangles[trigIdx * 3 + 2] = i; // abc -> abi
             if (leftToBottom) {
               triangles[(numTriangles - 1) * 3 + 1] = a; // cbi -> cai
@@ -175,18 +191,18 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
               correctingHullEdge = correctingHullEdge.next;
             }
 
-            // console.log(`   after flipped, triangle: ${ triangles }`);
+            console.log(`   after flipped:\n    triangle: ${ triangles }\n    triangleNeighbors: ${ triangleNeighbors }`);
           }
         }
       }
 
       hullEdge = nextEdge;
-      // console.log(`-> hull: ${ rootHullEdge }`);
+      console.log(`-> hull: ${ rootHullEdge }`);
     }
-    // console.log(`Added point ${ i } -> triangle: ${ triangles }\n---`);
+    console.log(`Added point ${ i }\n  triangles : ${ triangles }\n  trianglesN: ${ triangleNeighbors }\n---`);
   }
 
-  // console.log(`DONE!! -> triangle: ${ triangles.subarray(0, numTriangles * 3) }`);
+  console.log(`DONE!! -> triangle: ${ triangles.subarray(0, numTriangles * 3) }`);
   return { triangles: triangles.subarray(0, numTriangles * 3), points: points };
 }
 
