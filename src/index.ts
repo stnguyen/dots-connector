@@ -30,8 +30,6 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
   const triangleNeighbors = new Uint32Array(maxTriangles * 3);
   triangleNeighbors.fill(maxTriangles + 1);
 
-  const newTriangleNeighbors = new Int32Array(3);
-  newTriangleNeighbors.fill(-1);
   let numTriangles = 0;
   let rootHullEdge: HullEdge;
 
@@ -67,11 +65,8 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
         triangles[numTriangles * 3 + 1] = hullEdge.from;
         triangles[numTriangles * 3 + 2] = i;
 
-        newTriangleNeighbors.fill(-1);
-        newTriangleNeighbors[0] = hullEdge.triangle;
         const a = triangles[hullEdge.triangle * 3 + 0];
         const b = triangles[hullEdge.triangle * 3 + 1];
-        const c = triangles[hullEdge.triangle * 3 + 2];
         const idx = a === hullEdge.to
           ? 1
           : b === hullEdge.to
@@ -95,7 +90,7 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
         // Check if lower edge is equal to reverse of prevEdge
         if (prevEdge && prevEdge.from === i) {
           // Equal to reverse of prevEdge, then remove prevEdge
-          newTriangleNeighbors[1] = prevEdge.triangle;
+          // legalize(points, triangles, triangleNeighbors, rootHullEdge, maxTriangles, numTriangles - 1, prevEdge.triangle, i);
           triangleNeighbors[prevEdge.triangle * 3 + 1] = numTriangles - 1;
           triangleNeighbors[(numTriangles - 1) * 3 + 0] = prevEdge.triangle;
           if (prevEdge.prev) {
@@ -121,7 +116,8 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
         const nextOrRoot = nextEdge || rootHullEdge;
         if (nextOrRoot.from === newUpperEdge.to && nextOrRoot.to === newUpperEdge.from) {
           // Equal to reverse of next/root edge, then remove next/rootEdge
-          newTriangleNeighbors[1] = nextOrRoot.triangle;
+          // legalize(points, triangles, triangleNeighbors, rootHullEdge, maxTriangles, numTriangles - 1, nextOrRoot.triangle, i);
+
           triangleNeighbors[(numTriangles - 1) * 3 + 1] = nextOrRoot.triangle;
           triangleNeighbors[nextOrRoot.triangle * 3 + 0] = numTriangles - 1;
           if (nextOrRoot === rootHullEdge) {
@@ -142,76 +138,9 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
         hullEdge.next = undefined;
         hullEdge.prev = undefined;
 
+        legalize(points, triangles, triangleNeighbors, rootHullEdge, maxTriangles, numTriangles - 1, hullEdge.triangle, i);
+
         console.log(`  - hull: ${ rootHullEdge }\n    triangles : ${ triangles }\n    trianglesN: ${ triangleNeighbors }`);
-        console.log(`  - Neighbor triangles: ${ newTriangleNeighbors.filter((t) => t >= 0).join(', ') }`);
-        for (let j = 0; j < newTriangleNeighbors.length; j++) {
-          const trigIdx = newTriangleNeighbors[j];
-          if (trigIdx < 0) {
-            break;
-          }
-
-          const a = triangles[trigIdx * 3 + 0];
-          const b = triangles[trigIdx * 3 + 1];
-          const c = triangles[trigIdx * 3 + 2];
-          const leftToBottom = hullEdge.to > hullEdge.from;
-          if (leftToBottom ? inCircle(points, a, b, c, i) : inCircle(points, b, c, a, i)) {
-            console.log(`  ⟳ Need to flip edge between ${ numTriangles - 1 } and ${ trigIdx }`);
-            triangles[trigIdx * 3 + 2] = i; // abc -> abi
-            const tr = triangleNeighbors[(numTriangles - 1) * 3 + 1];
-            const br = triangleNeighbors[(numTriangles - 1) * 3 + 0];
-            if (leftToBottom) {
-              triangles[(numTriangles - 1) * 3 + 1] = a; // cbi -> cai
-              const tl = triangleNeighbors[trigIdx * 3 + 1];
-              const bl = triangleNeighbors[trigIdx * 3 + 2];
-              triangleNeighbors[trigIdx * 3 + 0] = br;
-              triangleNeighbors[trigIdx * 3 + 1] = numTriangles - 1;
-              triangleNeighbors[trigIdx * 3 + 2] = bl;
-              triangleNeighbors[(numTriangles - 1) * 3 + 0] = trigIdx;
-              triangleNeighbors[(numTriangles - 1) * 3 + 1] = tr;
-              triangleNeighbors[(numTriangles - 1) * 3 + 2] = tl;
-            } else {
-              triangles[(numTriangles - 1) * 3 + 0] = b; // aci -> bci
-              const tl = triangleNeighbors[trigIdx * 3 + 2];
-              const bl = triangleNeighbors[trigIdx * 3 + 0];
-              triangleNeighbors[trigIdx * 3 + 0] = numTriangles - 1;
-              triangleNeighbors[trigIdx * 3 + 1] = tr;
-              triangleNeighbors[trigIdx * 3 + 2] = tl;
-              triangleNeighbors[(numTriangles - 1) * 3 + 0] = br;
-              triangleNeighbors[(numTriangles - 1) * 3 + 1] = trigIdx;
-              triangleNeighbors[(numTriangles - 1) * 3 + 2] = bl;
-            }
-
-            let correctingHullEdge: HullEdge | undefined = rootHullEdge;
-            let numCorrected = 0;
-            while (correctingHullEdge) {
-              if (correctingHullEdge.triangle === trigIdx) {
-                if (leftToBottom && correctingHullEdge.from === c) {
-                  correctingHullEdge.triangle = numTriangles - 1;
-                  numCorrected++;
-                } else if (!leftToBottom && correctingHullEdge.from === b) {
-                  correctingHullEdge.triangle = numTriangles - 1;
-                  numCorrected++;
-                }
-              }
-              else if (correctingHullEdge.triangle === numTriangles - 1) {
-                if (leftToBottom && correctingHullEdge.from === b) {
-                  correctingHullEdge.triangle = trigIdx;
-                  numCorrected++;
-                } else if (!leftToBottom && correctingHullEdge.from === i) {
-                  correctingHullEdge.triangle = trigIdx
-                  numCorrected++;
-                }
-              }
-
-              if (numCorrected === 2) {
-                break;
-              }
-              correctingHullEdge = correctingHullEdge.next;
-            }
-
-            console.log(`   after flipped:\n    triangle: ${ triangles }\n    triangleNeighbors: ${ triangleNeighbors }`);
-          }
-        }
       }
 
       hullEdge = nextEdge;
@@ -222,6 +151,120 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
 
   console.log(`DONE!! -> triangle: ${ triangles.subarray(0, numTriangles * 3) }`);
   return { triangles: triangles.subarray(0, numTriangles * 3), points: points };
+}
+
+const checkTriangleTuples = new Uint32Array(512);
+function legalize (points: Float32Array, triangles: Uint32Array, triangleNeighbors: Uint32Array, rootHullEdge: HullEdge, maxTriangles: number, trig1: number, trig2: number, newPoint: number) {
+  let checkTrianglePairIndex = 0;
+  let numCheckTrianglePairs = 1;
+  checkTriangleTuples[0] = trig1;
+  checkTriangleTuples[1] = trig2;
+  checkTriangleTuples[2] = newPoint;
+
+  while (checkTrianglePairIndex < numCheckTrianglePairs) {
+    console.log(`  - Neighbor triangles: ${ checkTriangleTuples.slice(checkTrianglePairIndex * 3, numCheckTrianglePairs * 3) }`);
+    const newTriangle = checkTriangleTuples[checkTrianglePairIndex * 3 + 0];
+    const oldTriangle = checkTriangleTuples[checkTrianglePairIndex * 3 + 1];
+    const p = checkTriangleTuples[checkTrianglePairIndex * 3 + 2];
+
+    checkTrianglePairIndex++;
+
+    const a = triangles[oldTriangle * 3 + 0];
+    const b = triangles[oldTriangle * 3 + 1];
+    const c = triangles[oldTriangle * 3 + 2];
+    const oldToBottom = triangles[newTriangle * 3 + 0] > triangles[newTriangle * 3 + 1];
+
+    console.log(`    -> Check neighbor triangles: new (${triangles[newTriangle * 3 + 0]},${triangles[newTriangle * 3 + 1]},${triangles[newTriangle * 3 + 2]}) vs old (${a},${b},${c}) to handle new point ${p} with oldToBottom ${oldToBottom}`);
+
+    if (oldToBottom ? inCircle(points, a, b, c, p) : inCircle(points, b, c, a, p)) {
+      console.log(`     ⟳ Need to flip edge between new ${ newTriangle } and old ${ oldTriangle }`);
+      // // Discard queued tuples because they have wrong values after this flip
+      // numCheckTrianglePairs = checkTrianglePairIndex;
+      
+      triangles[oldTriangle * 3 + 2] = p; // abc -> abi
+
+      const tr = triangleNeighbors[newTriangle * 3 + 1];
+      const br = triangleNeighbors[newTriangle * 3 + 0];
+      const tl = oldToBottom
+        ? triangleNeighbors[oldTriangle * 3 + 1]
+        : triangleNeighbors[oldTriangle * 3 + 2];
+      const bl = oldToBottom
+        ? triangleNeighbors[oldTriangle * 3 + 2]
+        : triangleNeighbors[oldTriangle * 3 + 0];
+      if (oldToBottom) {
+        triangles[newTriangle * 3 + 1] = a; // cbi -> cai
+        triangleNeighbors[oldTriangle * 3 + 0] = br;
+        triangleNeighbors[oldTriangle * 3 + 1] = newTriangle;
+        triangleNeighbors[oldTriangle * 3 + 2] = bl;
+        triangleNeighbors[newTriangle * 3 + 0] = oldTriangle;
+        triangleNeighbors[newTriangle * 3 + 1] = tr;
+        triangleNeighbors[newTriangle * 3 + 2] = tl;
+      } else {
+        triangles[newTriangle * 3 + 0] = b; // aci -> bci
+        triangleNeighbors[oldTriangle * 3 + 0] = newTriangle;
+        triangleNeighbors[oldTriangle * 3 + 1] = tr;
+        triangleNeighbors[oldTriangle * 3 + 2] = tl;
+        triangleNeighbors[newTriangle * 3 + 0] = br;
+        triangleNeighbors[newTriangle * 3 + 1] = oldTriangle;
+        triangleNeighbors[newTriangle * 3 + 2] = bl;
+      }
+      // if (tl <= maxTriangles) {
+      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 0] = oldToBottom ? newTriangle : oldTriangle;
+      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 1] = tl;
+      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 2] = p;
+      //   numCheckTrianglePairs++;
+      // }
+      // if (bl <= maxTriangles) {
+      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 0] = oldToBottom ? oldTriangle : newTriangle;
+      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 1] = bl;
+      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 2] = p;
+      //   numCheckTrianglePairs++;
+      // }
+      // if (tr <= maxTriangles) {
+      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 0] = oldToBottom ? newTriangle : oldTriangle;
+      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 1] = tr;
+      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 2] = oldToBottom ? a : b;
+      //   numCheckTrianglePairs++;
+      // }
+      // if (br <= maxTriangles) {
+      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 0] = oldToBottom ? oldTriangle : newTriangle;
+      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 1] = br;
+      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 2] = oldToBottom ? a : b;
+      //   numCheckTrianglePairs++;
+      // }
+
+      // Correct hullEdge.triangle fields
+      let correctingHullEdge: HullEdge | undefined = rootHullEdge;
+      let numCorrected = 0;
+      while (correctingHullEdge) {
+        if (correctingHullEdge.triangle === oldTriangle) {
+          if (oldToBottom && correctingHullEdge.from === c) {
+            correctingHullEdge.triangle = newTriangle;
+            numCorrected++;
+          } else if (!oldToBottom && correctingHullEdge.from === b) {
+            correctingHullEdge.triangle = newTriangle;
+            numCorrected++;
+          }
+        }
+        else if (correctingHullEdge.triangle === newTriangle) {
+          if (oldToBottom && correctingHullEdge.from === b) {
+            correctingHullEdge.triangle = oldTriangle;
+            numCorrected++;
+          } else if (!oldToBottom && correctingHullEdge.from === p) {
+            correctingHullEdge.triangle = oldTriangle
+            numCorrected++;
+          }
+        }
+
+        if (numCorrected === 2) {
+          break;
+        }
+        correctingHullEdge = correctingHullEdge.next;
+      }
+
+      console.log(`      after flipped:\n       triangles : ${ triangles }\n       trianglesN: ${ triangleNeighbors }`);
+    } // if need flip
+  }
 }
 
 function isP2OnRightSide(points: Float32Array, p0: number, p1: number, p2: number): boolean {
