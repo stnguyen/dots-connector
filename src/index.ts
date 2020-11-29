@@ -157,10 +157,28 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
           if (leftToBottom ? inCircle(points, a, b, c, i) : inCircle(points, b, c, a, i)) {
             console.log(`  ⟳ Need to flip edge between ${ numTriangles - 1 } and ${ trigIdx }`);
             triangles[trigIdx * 3 + 2] = i; // abc -> abi
+            const tr = triangleNeighbors[(numTriangles - 1) * 3 + 1];
+            const br = triangleNeighbors[(numTriangles - 1) * 3 + 0];
             if (leftToBottom) {
               triangles[(numTriangles - 1) * 3 + 1] = a; // cbi -> cai
+              const tl = triangleNeighbors[trigIdx * 3 + 1];
+              const bl = triangleNeighbors[trigIdx * 3 + 2];
+              triangleNeighbors[trigIdx * 3 + 0] = br;
+              triangleNeighbors[trigIdx * 3 + 1] = numTriangles - 1;
+              triangleNeighbors[trigIdx * 3 + 2] = bl;
+              triangleNeighbors[(numTriangles - 1) * 3 + 0] = trigIdx;
+              triangleNeighbors[(numTriangles - 1) * 3 + 1] = tr;
+              triangleNeighbors[(numTriangles - 1) * 3 + 2] = tl;
             } else {
               triangles[(numTriangles - 1) * 3 + 0] = b; // aci -> bci
+              const tl = triangleNeighbors[trigIdx * 3 + 2];
+              const bl = triangleNeighbors[trigIdx * 3 + 0];
+              triangleNeighbors[trigIdx * 3 + 0] = numTriangles - 1;
+              triangleNeighbors[trigIdx * 3 + 1] = tr;
+              triangleNeighbors[trigIdx * 3 + 2] = tl;
+              triangleNeighbors[(numTriangles - 1) * 3 + 0] = br;
+              triangleNeighbors[(numTriangles - 1) * 3 + 1] = trigIdx;
+              triangleNeighbors[(numTriangles - 1) * 3 + 2] = bl;
             }
 
             let correctingHullEdge: HullEdge | undefined = rootHullEdge;
