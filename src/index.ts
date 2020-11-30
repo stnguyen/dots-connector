@@ -143,6 +143,7 @@ function expand (points: Float64Array): { triangles: Uint32Array, points: Float6
         hullEdge.next = undefined;
         hullEdge.prev = undefined;
 
+        // 70% time in this function
         legalize(points, triangles, triangleNeighbors, rootHullEdge, maxTriangles, numTriangles - 1);
 
         // console.log(`  - hull: ${ rootHullEdge }\n    triangles : ${ triangles }\n    trianglesN: ${ triangleNeighbors }`);
