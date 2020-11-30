@@ -32,7 +32,7 @@ function flatten (points: number[][]): Float64Array {
 } 
 
 function expand (points: Float64Array): { triangles: Uint32Array, points: Float64Array } {
-  console.log(`points: ${ points }`);
+  // console.log(`points: ${ points }`);
   const maxTriangles = Math.max(2 * points.length/2 - 5, 0);
   const triangles = new Uint32Array(maxTriangles * 3);
   const triangleNeighbors = new Uint32Array(maxTriangles * 3);
@@ -62,11 +62,11 @@ function expand (points: Float64Array): { triangles: Uint32Array, points: Float6
   for (let i = 3; i < points.length / 2; i++) {
     let hullEdge: HullEdge | undefined = rootHullEdge;
     while (hullEdge) {
-      console.log(`hullEdge: ${ hullEdge.from },${ hullEdge.to }`);
+      // console.log(`hullEdge: ${ hullEdge.from },${ hullEdge.to }`);
       const prevEdge: HullEdge | undefined = hullEdge.prev;
       const nextEdge: HullEdge | undefined = hullEdge.next;
-      // prevEdge && console.log(`  - prevEdge: ${ prevEdge.from },${ prevEdge.to }`);
-      // nextEdge && console.log(`  - nextEdge: ${ nextEdge.from },${ nextEdge.to }`);
+      // prevEdge && // console.log(`  - prevEdge: ${ prevEdge.from },${ prevEdge.to }`);
+      // nextEdge && // console.log(`  - nextEdge: ${ nextEdge.from },${ nextEdge.to }`);
       if (isOnRightSide(points, hullEdge.from, hullEdge.to, i)) {
         // NEW TRIANGLE!!!
         triangles[numTriangles * 3 + 0] = hullEdge.to;
@@ -89,8 +89,8 @@ function expand (points: Float64Array): { triangles: Uint32Array, points: Float6
 
         let newUpperEdge: HullEdge | undefined = new HullEdge(i, hullEdge.to, numTriangles, nextEdge);
         let newLowerEdge: HullEdge | undefined = new HullEdge(hullEdge.from, i, numTriangles, newUpperEdge, prevEdge);
-        console.log(`  - newUpperEdge: ${ newUpperEdge.from },${ newUpperEdge.to }`);
-        console.log(`  - newLowerEdge: ${ newLowerEdge.from },${ newLowerEdge.to }`);
+        // console.log(`  - newUpperEdge: ${ newUpperEdge.from },${ newUpperEdge.to }`);
+        // console.log(`  - newLowerEdge: ${ newLowerEdge.from },${ newLowerEdge.to }`);
 
         // INCREASE NUM TRIANGLES
         numTriangles++;
@@ -145,16 +145,16 @@ function expand (points: Float64Array): { triangles: Uint32Array, points: Float6
 
         legalize(points, triangles, triangleNeighbors, rootHullEdge, maxTriangles, numTriangles - 1);
 
-        console.log(`  - hull: ${ rootHullEdge }\n    triangles : ${ triangles }\n    trianglesN: ${ triangleNeighbors }`);
+        // console.log(`  - hull: ${ rootHullEdge }\n    triangles : ${ triangles }\n    trianglesN: ${ triangleNeighbors }`);
       }
 
       hullEdge = nextEdge;
-      console.log(`-> hull: ${ rootHullEdge }`);
+      // console.log(`-> hull: ${ rootHullEdge }`);
     }
-    console.log(`Added point ${ i }\n  triangles : ${ triangles }\n  trianglesN: ${ triangleNeighbors }\n---`);
+    // console.log(`Added point ${ i }\n  triangles : ${ triangles }\n  trianglesN: ${ triangleNeighbors }\n---`);
   }
 
-  console.log(`DONE!! -> triangle: ${ triangles.subarray(0, numTriangles * 3) }`);
+  // console.log(`DONE!! -> triangle: ${ triangles.subarray(0, numTriangles * 3) }`);
   return { triangles: triangles.subarray(0, numTriangles * 3), points: points };
 }
 
@@ -167,7 +167,7 @@ function legalize (points: Float64Array, triangles: Uint32Array, triangleNeighbo
 
   while (checkTrianglePairIndex < numCheckTriangles) {
     const checkingTriangle = needCheckTriangles[checkTrianglePairIndex];
-    console.log(`  - Check triangle ${ checkingTriangle } with its neighbours...`);
+    // console.log(`  - Check triangle ${ checkingTriangle } with its neighbours...`);
 
     tempCheckNeighbours[0] = triangleNeighbors[checkingTriangle * 3 + 0];
     tempCheckNeighbours[1] = triangleNeighbors[checkingTriangle * 3 + 1];
@@ -188,9 +188,9 @@ function legalize (points: Float64Array, triangles: Uint32Array, triangleNeighbo
           : triangles[checkingTriangle * 3 + 2];
       const oldToBottom = triangles[checkingTriangle * 3 + 0] > triangles[checkingTriangle * 3 + 1];
 
-      console.log(`    -> Check neighbor triangles: new (${triangles[checkingTriangle * 3 + 0]},${triangles[checkingTriangle * 3 + 1]},${triangles[checkingTriangle * 3 + 2]}) vs old (${a},${b},${c}) to handle new point ${p} with oldToBottom ${oldToBottom}`);
+      // console.log(`    -> Check neighbor triangles: new (${triangles[checkingTriangle * 3 + 0]},${triangles[checkingTriangle * 3 + 1]},${triangles[checkingTriangle * 3 + 2]}) vs old (${a},${b},${c}) to handle new point ${p} with oldToBottom ${oldToBottom}`);
       if (oldToBottom ? inCircle(points, a, b, c, p) : inCircle(points, b, c, a, p)) {
-        console.log(`     ⟳ Need to flip edge between new ${ checkingTriangle } and old ${ oldTriangle }`);
+        // console.log(`     ⟳ Need to flip edge between new ${ checkingTriangle } and old ${ oldTriangle }`);
 
         triangles[oldTriangle * 3 + 2] = p; // abc -> abi
 
@@ -204,6 +204,20 @@ function legalize (points: Float64Array, triangles: Uint32Array, triangleNeighbo
           : triangleNeighbors[oldTriangle * 3 + 0];
         if (oldToBottom) {
           triangles[checkingTriangle * 3 + 1] = a; // cbi -> cai
+
+          for (let idx = 0; idx < 3; idx++) {
+            if (triangleNeighbors[tl * 3 + idx] === oldTriangle) {
+              triangleNeighbors[tl * 3 + idx] = checkingTriangle;
+              break;
+            }
+          }
+          for (let idx = 0; idx < 3; idx++) {
+            if (triangleNeighbors[br * 3 + idx] === checkingTriangle) {
+              triangleNeighbors[br * 3 + idx] = oldTriangle;
+              break;
+            }
+          }
+
           triangleNeighbors[oldTriangle * 3 + 0] = br;
           triangleNeighbors[oldTriangle * 3 + 1] = checkingTriangle;
           triangleNeighbors[oldTriangle * 3 + 2] = bl;
@@ -212,6 +226,20 @@ function legalize (points: Float64Array, triangles: Uint32Array, triangleNeighbo
           triangleNeighbors[checkingTriangle * 3 + 2] = tl;
         } else {
           triangles[checkingTriangle * 3 + 0] = b; // aci -> bci
+
+          for (let idx = 0; idx < 3; idx++) {
+            if (triangleNeighbors[bl * 3 + idx] === oldTriangle) {
+              triangleNeighbors[bl * 3 + idx] = checkingTriangle;
+              break;
+            }
+          }
+          for (let idx = 0; idx < 3; idx++) {
+            if (triangleNeighbors[tr * 3 + idx] === checkingTriangle) {
+              triangleNeighbors[tr * 3 + idx] = oldTriangle;
+              break;
+            }
+          }
+
           triangleNeighbors[oldTriangle * 3 + 0] = checkingTriangle;
           triangleNeighbors[oldTriangle * 3 + 1] = tr;
           triangleNeighbors[oldTriangle * 3 + 2] = tl;
@@ -249,7 +277,7 @@ function legalize (points: Float64Array, triangles: Uint32Array, triangleNeighbo
           correctingHullEdge = correctingHullEdge.next;
         }
 
-        console.log(`      after flipped:\n       triangles : ${ triangles }\n       trianglesN: ${ triangleNeighbors }`);
+        // console.log(`      after flipped:\n       triangles : ${ triangles }\n       trianglesN: ${ triangleNeighbors }`);
 
         // Add these 2 new triangles into check list
         needCheckTriangles[numCheckTriangles++] = checkingTriangle;
