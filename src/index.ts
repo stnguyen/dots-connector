@@ -1,29 +1,37 @@
-function triangulate (points: number[][]): { triangles: Uint32Array, points: Float32Array } {
-  return pipe([ sortByX, flattenWithNoise, expand ])(points);
+function triangulate (points: number[][]): { triangles: Uint32Array, points: Float64Array } {
+  return pipe([ addNoise, sortByX, flatten, expand ])(points);
+}
+
+function addNoise (points: number[][]): number[][] {
+  points.forEach((p) => {
+    p[0] += Math.random() / 1_000_000;
+    p[1] += Math.random() / 1_000_000;
+  });
+  return points;
 }
 
 /**
  * Sort points by x so we can do a left-to-right scan later
- * @param points an array of points, where each point is an array of 2 numbers
+ * @param points a 2D array of points, where each point is an array of 2 numbers
  */
 function sortByX (points: number[][]): number[][] {
   return points.sort((a: number[], b: number[]) => a[0] - b[0]);
 }
 
 /**
- * Flatten into a typed array. Also add small random noise to avoid collinear point issue
- * @param points an array of points, where each point is an array of 2 numbers
+ * Flatten into a typed array
+ * @param points a 1D array of point coordinate numbers
  */
-function flattenWithNoise (points: number[][]): Float32Array {
-  const result = new Float32Array(points.length * 2);
+function flatten (points: number[][]): Float64Array {
+  const result = new Float64Array(points.length * 2);
   points.forEach((point, idx) => {
-    result[idx * 2]     = point[0] + Math.random() / 1_000_000_000;
-    result[idx * 2 + 1] = point[1] + Math.random() / 1_000_000_000;
+    result[idx * 2]     = point[0];
+    result[idx * 2 + 1] = point[1];
   });
   return result;
 } 
 
-function expand (points: Float32Array): { triangles: Uint32Array, points: Float32Array } {
+function expand (points: Float64Array): { triangles: Uint32Array, points: Float64Array } {
   console.log(`points: ${ points }`);
   const maxTriangles = Math.max(2 * points.length/2 - 5, 0);
   const triangles = new Uint32Array(maxTriangles * 3);
@@ -34,7 +42,7 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
   let rootHullEdge: HullEdge;
 
   // Add first 3 points
-  const is3rdPointOnRightSide = isP2OnRightSide(points, 0, 1, 2);
+  const is3rdPointOnRightSide = isOnRightSide(points, 0, 1, 2);
   if (is3rdPointOnRightSide) {
     // p1p0p2
     triangles[0] = 1;
@@ -59,7 +67,7 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
       const nextEdge: HullEdge | undefined = hullEdge.next;
       // prevEdge && console.log(`  - prevEdge: ${ prevEdge.from },${ prevEdge.to }`);
       // nextEdge && console.log(`  - nextEdge: ${ nextEdge.from },${ nextEdge.to }`);
-      if (isP2OnRightSide(points, hullEdge.from, hullEdge.to, i)) {
+      if (isOnRightSide(points, hullEdge.from, hullEdge.to, i)) {
         // NEW TRIANGLE!!!
         triangles[numTriangles * 3 + 0] = hullEdge.to;
         triangles[numTriangles * 3 + 1] = hullEdge.from;
@@ -90,7 +98,6 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
         // Check if lower edge is equal to reverse of prevEdge
         if (prevEdge && prevEdge.from === i) {
           // Equal to reverse of prevEdge, then remove prevEdge
-          // legalize(points, triangles, triangleNeighbors, rootHullEdge, maxTriangles, numTriangles - 1, prevEdge.triangle, i);
           triangleNeighbors[prevEdge.triangle * 3 + 1] = numTriangles - 1;
           triangleNeighbors[(numTriangles - 1) * 3 + 0] = prevEdge.triangle;
           if (prevEdge.prev) {
@@ -116,8 +123,6 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
         const nextOrRoot = nextEdge || rootHullEdge;
         if (nextOrRoot.from === newUpperEdge.to && nextOrRoot.to === newUpperEdge.from) {
           // Equal to reverse of next/root edge, then remove next/rootEdge
-          // legalize(points, triangles, triangleNeighbors, rootHullEdge, maxTriangles, numTriangles - 1, nextOrRoot.triangle, i);
-
           triangleNeighbors[(numTriangles - 1) * 3 + 1] = nextOrRoot.triangle;
           triangleNeighbors[nextOrRoot.triangle * 3 + 0] = numTriangles - 1;
           if (nextOrRoot === rootHullEdge) {
@@ -138,7 +143,7 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
         hullEdge.next = undefined;
         hullEdge.prev = undefined;
 
-        legalize(points, triangles, triangleNeighbors, rootHullEdge, maxTriangles, numTriangles - 1, hullEdge.triangle, i);
+        legalize(points, triangles, triangleNeighbors, rootHullEdge, maxTriangles, numTriangles - 1);
 
         console.log(`  - hull: ${ rootHullEdge }\n    triangles : ${ triangles }\n    trianglesN: ${ triangleNeighbors }`);
       }
@@ -153,131 +158,132 @@ function expand (points: Float32Array): { triangles: Uint32Array, points: Float3
   return { triangles: triangles.subarray(0, numTriangles * 3), points: points };
 }
 
-const checkTriangleTuples = new Uint32Array(512);
-function legalize (points: Float32Array, triangles: Uint32Array, triangleNeighbors: Uint32Array, rootHullEdge: HullEdge, maxTriangles: number, trig1: number, trig2: number, newPoint: number) {
+const needCheckTriangles = new Uint32Array(512);
+const tempCheckNeighbours = new Uint32Array(3);
+function legalize (points: Float64Array, triangles: Uint32Array, triangleNeighbors: Uint32Array, rootHullEdge: HullEdge, maxTriangles: number, triangle: number) {
   let checkTrianglePairIndex = 0;
-  let numCheckTrianglePairs = 1;
-  checkTriangleTuples[0] = trig1;
-  checkTriangleTuples[1] = trig2;
-  checkTriangleTuples[2] = newPoint;
+  let numCheckTriangles = 1;
+  needCheckTriangles[0] = triangle;
 
-  while (checkTrianglePairIndex < numCheckTrianglePairs) {
-    console.log(`  - Neighbor triangles: ${ checkTriangleTuples.slice(checkTrianglePairIndex * 3, numCheckTrianglePairs * 3) }`);
-    const newTriangle = checkTriangleTuples[checkTrianglePairIndex * 3 + 0];
-    const oldTriangle = checkTriangleTuples[checkTrianglePairIndex * 3 + 1];
-    const p = checkTriangleTuples[checkTrianglePairIndex * 3 + 2];
+  while (checkTrianglePairIndex < numCheckTriangles) {
+    const checkingTriangle = needCheckTriangles[checkTrianglePairIndex];
+    console.log(`  - Check triangle ${ checkingTriangle } with its neighbours...`);
 
-    checkTrianglePairIndex++;
+    tempCheckNeighbours[0] = triangleNeighbors[checkingTriangle * 3 + 0];
+    tempCheckNeighbours[1] = triangleNeighbors[checkingTriangle * 3 + 1];
+    tempCheckNeighbours[2] = triangleNeighbors[checkingTriangle * 3 + 2];
 
-    const a = triangles[oldTriangle * 3 + 0];
-    const b = triangles[oldTriangle * 3 + 1];
-    const c = triangles[oldTriangle * 3 + 2];
-    const oldToBottom = triangles[newTriangle * 3 + 0] > triangles[newTriangle * 3 + 1];
-
-    console.log(`    -> Check neighbor triangles: new (${triangles[newTriangle * 3 + 0]},${triangles[newTriangle * 3 + 1]},${triangles[newTriangle * 3 + 2]}) vs old (${a},${b},${c}) to handle new point ${p} with oldToBottom ${oldToBottom}`);
-
-    if (oldToBottom ? inCircle(points, a, b, c, p) : inCircle(points, b, c, a, p)) {
-      console.log(`     ⟳ Need to flip edge between new ${ newTriangle } and old ${ oldTriangle }`);
-      // // Discard queued tuples because they have wrong values after this flip
-      // numCheckTrianglePairs = checkTrianglePairIndex;
-      
-      triangles[oldTriangle * 3 + 2] = p; // abc -> abi
-
-      const tr = triangleNeighbors[newTriangle * 3 + 1];
-      const br = triangleNeighbors[newTriangle * 3 + 0];
-      const tl = oldToBottom
-        ? triangleNeighbors[oldTriangle * 3 + 1]
-        : triangleNeighbors[oldTriangle * 3 + 2];
-      const bl = oldToBottom
-        ? triangleNeighbors[oldTriangle * 3 + 2]
-        : triangleNeighbors[oldTriangle * 3 + 0];
-      if (oldToBottom) {
-        triangles[newTriangle * 3 + 1] = a; // cbi -> cai
-        triangleNeighbors[oldTriangle * 3 + 0] = br;
-        triangleNeighbors[oldTriangle * 3 + 1] = newTriangle;
-        triangleNeighbors[oldTriangle * 3 + 2] = bl;
-        triangleNeighbors[newTriangle * 3 + 0] = oldTriangle;
-        triangleNeighbors[newTriangle * 3 + 1] = tr;
-        triangleNeighbors[newTriangle * 3 + 2] = tl;
-      } else {
-        triangles[newTriangle * 3 + 0] = b; // aci -> bci
-        triangleNeighbors[oldTriangle * 3 + 0] = newTriangle;
-        triangleNeighbors[oldTriangle * 3 + 1] = tr;
-        triangleNeighbors[oldTriangle * 3 + 2] = tl;
-        triangleNeighbors[newTriangle * 3 + 0] = br;
-        triangleNeighbors[newTriangle * 3 + 1] = oldTriangle;
-        triangleNeighbors[newTriangle * 3 + 2] = bl;
+    for (let i = 0; i < 3; i++) {
+      const oldTriangle = tempCheckNeighbours[i];
+      const a = triangles[oldTriangle * 3 + 0];
+      const b = triangles[oldTriangle * 3 + 1];
+      const c = triangles[oldTriangle * 3 + 2];
+      if (oldTriangle > maxTriangles) {
+        continue;
       }
-      // if (tl <= maxTriangles) {
-      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 0] = oldToBottom ? newTriangle : oldTriangle;
-      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 1] = tl;
-      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 2] = p;
-      //   numCheckTrianglePairs++;
-      // }
-      // if (bl <= maxTriangles) {
-      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 0] = oldToBottom ? oldTriangle : newTriangle;
-      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 1] = bl;
-      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 2] = p;
-      //   numCheckTrianglePairs++;
-      // }
-      // if (tr <= maxTriangles) {
-      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 0] = oldToBottom ? newTriangle : oldTriangle;
-      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 1] = tr;
-      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 2] = oldToBottom ? a : b;
-      //   numCheckTrianglePairs++;
-      // }
-      // if (br <= maxTriangles) {
-      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 0] = oldToBottom ? oldTriangle : newTriangle;
-      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 1] = br;
-      //   checkTriangleTuples[numCheckTrianglePairs * 3 + 2] = oldToBottom ? a : b;
-      //   numCheckTrianglePairs++;
-      // }
+      const p = i === 0
+        ? triangles[checkingTriangle * 3 + 0]
+        : i === 1
+          ? triangles[checkingTriangle * 3 + 1]
+          : triangles[checkingTriangle * 3 + 2];
+      const oldToBottom = triangles[checkingTriangle * 3 + 0] > triangles[checkingTriangle * 3 + 1];
 
-      // Correct hullEdge.triangle fields
-      let correctingHullEdge: HullEdge | undefined = rootHullEdge;
-      let numCorrected = 0;
-      while (correctingHullEdge) {
-        if (correctingHullEdge.triangle === oldTriangle) {
-          if (oldToBottom && correctingHullEdge.from === c) {
-            correctingHullEdge.triangle = newTriangle;
-            numCorrected++;
-          } else if (!oldToBottom && correctingHullEdge.from === b) {
-            correctingHullEdge.triangle = newTriangle;
-            numCorrected++;
+      console.log(`    -> Check neighbor triangles: new (${triangles[checkingTriangle * 3 + 0]},${triangles[checkingTriangle * 3 + 1]},${triangles[checkingTriangle * 3 + 2]}) vs old (${a},${b},${c}) to handle new point ${p} with oldToBottom ${oldToBottom}`);
+      if (oldToBottom ? inCircle(points, a, b, c, p) : inCircle(points, b, c, a, p)) {
+        console.log(`     ⟳ Need to flip edge between new ${ checkingTriangle } and old ${ oldTriangle }`);
+
+        triangles[oldTriangle * 3 + 2] = p; // abc -> abi
+
+        const tr = triangleNeighbors[checkingTriangle * 3 + 1];
+        const br = triangleNeighbors[checkingTriangle * 3 + 0];
+        const tl = oldToBottom
+          ? triangleNeighbors[oldTriangle * 3 + 1]
+          : triangleNeighbors[oldTriangle * 3 + 2];
+        const bl = oldToBottom
+          ? triangleNeighbors[oldTriangle * 3 + 2]
+          : triangleNeighbors[oldTriangle * 3 + 0];
+        if (oldToBottom) {
+          triangles[checkingTriangle * 3 + 1] = a; // cbi -> cai
+          triangleNeighbors[oldTriangle * 3 + 0] = br;
+          triangleNeighbors[oldTriangle * 3 + 1] = checkingTriangle;
+          triangleNeighbors[oldTriangle * 3 + 2] = bl;
+          triangleNeighbors[checkingTriangle * 3 + 0] = oldTriangle;
+          triangleNeighbors[checkingTriangle * 3 + 1] = tr;
+          triangleNeighbors[checkingTriangle * 3 + 2] = tl;
+        } else {
+          triangles[checkingTriangle * 3 + 0] = b; // aci -> bci
+          triangleNeighbors[oldTriangle * 3 + 0] = checkingTriangle;
+          triangleNeighbors[oldTriangle * 3 + 1] = tr;
+          triangleNeighbors[oldTriangle * 3 + 2] = tl;
+          triangleNeighbors[checkingTriangle * 3 + 0] = br;
+          triangleNeighbors[checkingTriangle * 3 + 1] = oldTriangle;
+          triangleNeighbors[checkingTriangle * 3 + 2] = bl;
+        }
+
+        // Correct hullEdge.triangle fields
+        let correctingHullEdge: HullEdge | undefined = rootHullEdge;
+        let numCorrected = 0;
+        while (correctingHullEdge) {
+          if (correctingHullEdge.triangle === oldTriangle) {
+            if (oldToBottom && correctingHullEdge.from === c) {
+              correctingHullEdge.triangle = checkingTriangle;
+              numCorrected++;
+            } else if (!oldToBottom && correctingHullEdge.from === b) {
+              correctingHullEdge.triangle = checkingTriangle;
+              numCorrected++;
+            }
           }
-        }
-        else if (correctingHullEdge.triangle === newTriangle) {
-          if (oldToBottom && correctingHullEdge.from === b) {
-            correctingHullEdge.triangle = oldTriangle;
-            numCorrected++;
-          } else if (!oldToBottom && correctingHullEdge.from === p) {
-            correctingHullEdge.triangle = oldTriangle
-            numCorrected++;
+          else if (correctingHullEdge.triangle === checkingTriangle) {
+            if (oldToBottom && correctingHullEdge.from === b) {
+              correctingHullEdge.triangle = oldTriangle;
+              numCorrected++;
+            } else if (!oldToBottom && correctingHullEdge.from === p) {
+              correctingHullEdge.triangle = oldTriangle
+              numCorrected++;
+            }
           }
+
+          if (numCorrected === 2) {
+            break;
+          }
+          correctingHullEdge = correctingHullEdge.next;
         }
 
-        if (numCorrected === 2) {
-          break;
-        }
-        correctingHullEdge = correctingHullEdge.next;
-      }
+        console.log(`      after flipped:\n       triangles : ${ triangles }\n       trianglesN: ${ triangleNeighbors }`);
 
-      console.log(`      after flipped:\n       triangles : ${ triangles }\n       trianglesN: ${ triangleNeighbors }`);
+        // Add these 2 new triangles into check list
+        needCheckTriangles[numCheckTriangles++] = checkingTriangle;
+        needCheckTriangles[numCheckTriangles++] = oldTriangle;
+        break;
+      } // for neighbours
     } // if need flip
-  }
+    checkTrianglePairIndex++;
+  } // while loop
 }
 
-function isP2OnRightSide(points: Float32Array, p0: number, p1: number, p2: number): boolean {
+// return 2d orientation sign if we're confident in it through J. Shewchuk's error bound check
+function orientIfSure(px: number, py: number, rx: number, ry: number, qx: number, qy: number) {
+  const l = (ry - py) * (qx - px);
+  const r = (rx - px) * (qy - py);
+  return Math.abs(l - r) >= 3.3306690738754716e-16 * Math.abs(l + r) ? l - r : 0;
+}
+
+// a more robust orientation test that's stable in a given triangle (to fix robustness issues)
+function isOnRightSide(points: Float64Array, p0: number, p1: number, p2: number): boolean {
   const x0 = points[p0 * 2];
   const y0 = points[p0 * 2 + 1];
   const x1 = points[p1 * 2];
   const y1 = points[p1 * 2 + 1];
   const x2 = points[p2 * 2];
   const y2 = points[p2 * 2 + 1];
-  return (x2-x0)*(y1-y0)-(x1-x0)*(y2-y0) < 0;
+  return (
+    orientIfSure(x0, y0, x1, y1, x2, y2) ||
+    orientIfSure(x1, y1, x2, y2, x0, y0) ||
+    orientIfSure(x2, y2, x0, y0, x1, y1)
+  ) < 0;
 }
 
-function inCircle(points: Float32Array, a: number, b: number, c: number, p: number): boolean {
+function inCircle(points: Float64Array, a: number, b: number, c: number, p: number): boolean {
   const ax = points[a * 2];
   const ay = points[a * 2 + 1];
   const bx = points[b * 2];
