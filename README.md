@@ -1,7 +1,7 @@
 Dots Connector
 ===
 
-A fast 2D [Delaunay Triangulation](https://en.wikipedia.org/wiki/Delaunay_triangulation) TypeScript library.
+A 2D [Delaunay Triangulation](https://en.wikipedia.org/wiki/Delaunay_triangulation) TypeScript library.
 It works in modern browser and NodeJS environments.
 
 - [Interactive Demo](https://stnguyen.github.io/dots-connector/)
@@ -19,7 +19,7 @@ console.log(delaunay.triangles);
 // [0,1,2,...]
 ```
 
-It returns a an array of points because the algorithm requires adding small random noise to the original points, and also sort the points horizontally from left to right.
+It returns an array of points because the algorithm requires adding small random noise to the original points, and also sort the points horizontally from left to right.
 
 ## Install
 
@@ -35,3 +35,12 @@ Or use a browser build directly:
 <script src="https://unpkg.com/dots-connector/umd/dots-connector.min.js"></script> <!-- minified build -->
 <script src="https://unpkg.com/dots-connector/umd/dots-connector.js"></script> <!-- dev build -->
 ```
+
+## Bench
+
+Results of running [delaunator](https://github.com/mapbox/delaunator/blob/master/bench.js) bench script on Macbook Pro 16" 2019, Node v10.18.1
+
+|| uniform 100k | gauss 100k | grid 100k | degen 100k | uniform 1million | gauss 1million | grid 1million | degen 1million
+:-- | --: | --: | --: | --: | --: | --: | --: | --:
+dots-connector | 384ms | 427ms | 1010ms | failed | 5553ms | 5540ms | 11558ms | failed
+[delaunator](https://github.com/mapbox/delaunator) | 73ms | 61ms | 86ms | 31ms | 1046s | 1118ms | 945ms | 428ms
