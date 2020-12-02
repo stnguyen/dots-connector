@@ -1,9 +1,12 @@
 {
   "name": "dots-connector",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Delaunay Triangulation library",
   "main": "lib/index.js",
-  "files": ["lib"],
+  "files": [
+    "lib",
+    "umd"
+  ],
   "types": "lib/index.d.ts",
   "keywords": [
     "Delaunay",
@@ -12,7 +15,7 @@
   "author": "Son Tung Nguyen",
   "scripts": {
     "test": "mocha -r ts-node/register test/**/*.test.ts",
-    "build": "tsc"
+    "build": "tsc && rollup -c"
   },
   "repository": {
     "type": "git",
@@ -26,8 +29,10 @@
   "devDependencies": {
     "@types/mocha": "^8.0.3",
     "mocha": "^8.2.0",
+    "rollup": "^2.34.0",
+    "rollup-plugin-terser": "^7.0.2",
     "ts-node": "^9.0.0",
-    "typescript": "^4.0.3"
+    "typescript": "^4.1.2"
   },
   "dependencies": {
     "build": "^0.1.4"
