@@ -1,8 +1,9 @@
 {
   "name": "dots-connector",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Delaunay Triangulation library",
   "main": "lib/index.js",
+  "files": ["lib"],
   "types": "lib/index.d.ts",
   "keywords": [
     "Delaunay",

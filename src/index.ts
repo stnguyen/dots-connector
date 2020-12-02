@@ -1,4 +1,4 @@
-function triangulate (points: number[][]): { triangles: Uint32Array, points: Float64Array } {
+export default function triangulate (points: number[][]): { triangles: Uint32Array, points: Float64Array } {
   return pipe([ addNoise, sortByX, flatten, expand ])(points);
 }
 
