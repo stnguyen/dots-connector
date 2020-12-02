@@ -4,57 +4,67 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dots Connector Demo</title>
-  <script src="./lib/index.js"></script>
+  <style>
+    body { margin: 0; text-align: center; font-family: sans-serif; }
+    canvas { border: 1px solid #ccc; position: relative; }
+    a, a:visited { color: #09f }
+  </style>
+</head>
+<body>
+  <h1><a href="https://github.com/stnguyen/dots-connector">Dots Connector</a> basic interactive demo</h1>
+  <p>Click to add points!</p>
+  <p>There's also a <a href="./index.html">fancier demo</a></p>
+  <canvas id="demo-canvas" style="border: 1px dashed" width="900" height="600"></canvas>
+  <script src="https://unpkg.com/dots-connector/umd/dots-connector.min.js"></script>
   <script>
-    function init() {
-      const canvas = document.getElementById("demo-canvas");
-      const ctx = canvas.getContext("2d");
-      ctx.font = "10px Arial";
-      ctx.textAlign = "center"; 
-      const width = canvas.width;
-      const height = canvas.height;
+    const canvas = document.getElementById("demo-canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.font = "10px Arial";
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.textAlign = "center"; 
+    const width = canvas.width;
+    const height = canvas.height;
 
-      const originalPoints = [];
+    const originalPoints = [];
 
-      canvas.addEventListener("mousedown", (e) => {
-        const x = e.clientX - canvas.offsetLeft;
-        const y = e.clientY - canvas.offsetTop;
-        originalPoints.push([ x, y ]);
+    canvas.addEventListener("mousedown", (e) => {
+      const x = e.clientX - canvas.offsetLeft;
+      const y = e.clientY - canvas.offsetTop;
+      originalPoints.push([ x, y ]);
 
-        const { triangles, points } = triangulate(originalPoints);
+      const { triangles, points } = triangulate(originalPoints);
 
-        // Refresh
-        ctx.clearRect(0, 0, width, height);
-        ctx.beginPath();
-        // Draw edges first
-        ctx.fillStyle = "#000000";
-        for (var i = 0; i < triangles.length; i += 3) {
-          const i0 = triangles[i] * 2;
-          const i1 = triangles[i + 1] * 2;
-          const i2 = triangles[i + 2] * 2;
-          ctx.moveTo(points[i0], points[i0 + 1]);
-          ctx.lineTo(points[i1], points[i1 + 1]);
-          ctx.lineTo(points[i2], points[i2 + 1]);
-          ctx.closePath();
+      // Refresh
+      ctx.clearRect(0, 0, width, height);
+      ctx.beginPath();
+      // Draw edges first
+      ctx.fillStyle = "#000000";
+      for (var i = 0; i < triangles.length; i += 3) {
+        const i0 = triangles[i] * 2;
+        const i1 = triangles[i + 1] * 2;
+        const i2 = triangles[i + 2] * 2;
+        ctx.moveTo(points[i0], points[i0 + 1]);
+        ctx.lineTo(points[i1], points[i1 + 1]);
+        ctx.lineTo(points[i2], points[i2 + 1]);
+        ctx.closePath();
 
-          ctx.fillText('' + i/3,
-            (points[i0] + points[i1] + points[i2]) / 3,
-            (points[i0 + 1] + points[i1 + 1] + points[i2 + 1]) / 3 - 4);
-        }
-        ctx.stroke();
+        ctx.fillText('' + i/3,
+          (points[i0] + points[i1] + points[i2]) / 3,
+          (points[i0 + 1] + points[i1 + 1] + points[i2 + 1]) / 3 - 4);
+      }
+      ctx.strokeStyle = 'rgba(0,200,0,1)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
 
-        // Draw vertices
-        for (var i = 0; i < points.length; i += 2) {
-          ctx.fillStyle = "#cccccccc";
-          ctx.fillRect(points[i] - 6, points[i + 1] - 6, 12, 12);
-          ctx.fillStyle = "#ff2626ff";
-          ctx.fillText('' + i/2, points[i], points[i + 1] + 4);
-        }
-      })
-    }
+      // Draw vertices
+      for (var i = 0; i < points.length; i += 2) {
+        ctx.fillStyle = "#cccccccc";
+        ctx.fillRect(points[i] - 6, points[i + 1] - 6, 12, 12);
+        ctx.fillStyle = "#ff2626ff";
+        ctx.fillText('' + i/2, points[i], points[i + 1] + 4);
+      }
+    })
   </script>
 </head>
-<body onload="init()">
-  <canvas id="demo-canvas" style="border: 1px dashed" width="600" height="600"></canvas>
-</body>
 </html>
