@@ -14,7 +14,6 @@
   ],
   "author": "Son Tung Nguyen",
   "scripts": {
-    "test": "mocha -r ts-node/register test/**/*.test.ts",
     "build": "tsc && rollup -c"
   },
   "repository": {
