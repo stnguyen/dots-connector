@@ -43,4 +43,4 @@ Results of running [delaunator](https://github.com/mapbox/delaunator/blob/master
 || uniform 100k | gauss 100k | grid 100k | degen 100k | uniform 1million | gauss 1million | grid 1million | degen 1million
 :-- | --: | --: | --: | --: | --: | --: | --: | --:
 dots-connector | 384ms | 427ms | 1010ms | failed | 5553ms | 5540ms | 11558ms | failed
-[delaunator](https://github.com/mapbox/delaunator) | 73ms | 61ms | 86ms | 31ms | 1046s | 1118ms | 945ms | 428ms
+[delaunator](https://github.com/mapbox/delaunator) | 73ms | 61ms | 86ms | 31ms | 1046ms | 1118ms | 945ms | 428ms
