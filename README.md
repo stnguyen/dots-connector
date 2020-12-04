@@ -26,7 +26,11 @@ It returns an array of points because the algorithm requires adding small random
 Install with NPM (`npm install dots-connector`) then:
 
 ```js
+// import as an ES module
 import triangulate from 'dots-connector'
+
+// or require in Node / Browserify
+const triangulate = require('dots-connector');
 ```
 
 Or use a browser build directly:

@@ -1,8 +1,9 @@
 {
   "name": "dots-connector",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Delaunay Triangulation library",
-  "main": "lib/index.js",
+  "main": "umd/dots-connector.js",
+  "module": "lib/index.js",
   "files": [
     "lib",
     "umd"
